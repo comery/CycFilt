@@ -1,27 +1,16 @@
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write, Read};
+use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::env;
-use flate2::read::GzDecoder;
-use flate2::write::GzEncoder;
-use flate2::Compression;
 
-fn filter_fastq_by_quality_and_length(input_file: &str, output_file: &str, min_quality: f64, min_length: usize) {
-    let input_path = Path::new(input_file);
+fn filter_fastq_by_quality_and_length(input: &str, output_file: &str, min_quality: f64, min_length: usize) {
+    let input_path = Path::new(input);
     let output_path = Path::new(output_file);
 
     let input_file = File::open(input_path).expect("Failed to open input file");
+    let mut output_file = File::create(output_path).expect("Failed to create output file");
 
-    let mut buf = [0; 2];
-    File::open(input_path).expect("Failed to open input file again").read_exact(&mut buf).expect("Failed to read first two bytes");
-    let reader: Box<dyn BufRead> = if &buf == b"\x1f\x8b" {
-        Box::new(BufReader::new(GzDecoder::new(input_file)))
-    } else {
-        Box::new(BufReader::new(File::open(input_path).expect("Failed to open input file again")))
-    };
-
-    let output_file = File::create(output_path).expect("Failed to create output file");
-    let mut writer = GzEncoder::new(output_file, Compression::default());
+    let reader = BufReader::new(input_file);
 
     let mut lines = reader.lines();
     let mut total_reads = 0;
@@ -37,7 +26,7 @@ fn filter_fastq_by_quality_and_length(input_file: &str, output_file: &str, min_q
         // Debugging output
         // println!("Processing: {}", header);
 
-        // Validate that the header starts with '@', indicating it's a FASTQ header
+        // Validate that the header starts with '@ indicating it's a FASTQ header
         if header.starts_with('@') {
             let quality_value = match get_quality_value(&header) {
                 Ok(val) => val,
@@ -49,14 +38,14 @@ fn filter_fastq_by_quality_and_length(input_file: &str, output_file: &str, min_q
             };
 
             if quality_value >= min_quality && sequence.len() >= min_length {
-                writer.write_all(header.as_bytes()).unwrap();
-                writer.write_all(b"\n").unwrap();
-                writer.write_all(sequence.as_bytes()).unwrap();
-                writer.write_all(b"\n").unwrap();
-                writer.write_all(plus.as_bytes()).unwrap();
-                writer.write_all(b"\n").unwrap();
-                writer.write_all(quality.as_bytes()).unwrap();
-                writer.write_all(b"\n").unwrap();
+                output_file.write_all(header.as_bytes()).unwrap();
+                output_file.write_all(b"\n").unwrap();
+                output_file.write_all(sequence.as_bytes()).unwrap();
+                output_file.write_all(b"\n").unwrap();
+                output_file.write_all(plus.as_bytes()).unwrap();
+                output_file.write_all(b"\n").unwrap();
+                output_file.write_all(quality.as_bytes()).unwrap();
+                output_file.write_all(b"\n").unwrap();
             } else {
                 filtered_reads += 1;
             }
@@ -65,9 +54,6 @@ fn filter_fastq_by_quality_and_length(input_file: &str, output_file: &str, min_q
             filtered_reads += 1;
         }
     }
-
-    // Ensure we finish up the writer correctly
-    writer.finish().expect("Failed to finish writing compressed output");
 
     println!("Total reads processed: {}", total_reads);
     println!("Total reads filtered: {}", filtered_reads);
