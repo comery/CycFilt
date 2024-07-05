@@ -21,17 +21,20 @@ or cargo build --release
 ## Usage
 
 ```shell
-Usage: cyc_filt <input_file> <output_file> <min_quality> <min_length>
+Usage: cyc_filt --input <FILE> --output <FILE> --quality <FLOAT> --length <INT> --threads <INT>
 
-the input_filt is gzip-format aware, and output fromat is gzip compressed. 
-
-<min_quality> is minimal quality you required
-
-<min_length> is minimal read length you required
+Options:
+  -i, --input <FILE>     Input FASTQ file
+  -o, --output <FILE>    Output filtered FASTQ file
+  -q, --quality <FLOAT>  Minimum quality threshold
+  -l, --length <INT>     Minimum length threshold
+  -t, --threads <INT>    Number of threads to use
+  -h, --help             Print help
+  -V, --version          Print version
 
 
 e.g.
-cyc_filt test.fastq.gz test.hq.fq.gz 7 1000
+cyc_filt -i test.fastq.gz -o test.hq.fq.gz -q 7 -l 1000 -t 4
 ```
 
 

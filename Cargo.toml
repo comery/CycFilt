@@ -1,6 +1,6 @@
 [package]
 name = "cyc_filt"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["Chentao Yang yangchentao at genomics.cn"]
 
@@ -8,4 +8,5 @@ authors = ["Chentao Yang yangchentao at genomics.cn"]
 
 [dependencies]
 flate2 = "1.0"
-
+crossbeam = "0.8"
+clap = {version = "4", features = ["derive"]}
