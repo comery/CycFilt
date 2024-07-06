@@ -1,6 +1,6 @@
 [package]
 name = "cyc_filt"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 authors = ["Chentao Yang yangchentao at genomics.cn"]
 
@@ -10,3 +10,4 @@ authors = ["Chentao Yang yangchentao at genomics.cn"]
 flate2 = "1.0"
 crossbeam = "0.8"
 clap = {version = "4", features = ["derive"]}
+tokio = { version = "1", features = ["full"] }
