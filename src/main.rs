@@ -133,7 +133,7 @@ fn get_quality_value(header: &str) -> Result<f64, String> {
 
 
 fn main() {
-    let default_batch_size: usize = 10000;
+    // let default_batch_size: usize = 10000;
     let matches = clap::Command::new("fastq-filter")
         .arg(clap::Arg::new("input_file")
              .short('i')
@@ -164,16 +164,60 @@ fn main() {
              .short('b')
              .long("batch-size")
              .required(false)
-             .default_value(&default_batch_size.to_string())
+             .default_value("10000")
              .help("Batch size for processing"))
         .get_matches();
 
     let input_file = matches.get_one::<String>("input_file").unwrap();
     let output_file = matches.get_one::<String>("output_file").unwrap();
-    let min_quality: f64 = matches.get_one::<String>("min_quality").unwrap().parse().unwrap();
-    let min_length: usize = matches.get_one::<String>("min_length").unwrap().parse().unwrap();
-    let num_threads: usize = matches.get_one::<String>("num_threads").unwrap().parse().unwrap();
-    let batch_size: usize = matches.get_one::<String>("batch_size").unwrap().parse().unwrap();
+
+    // Check if the input file can be opened
+    let input_file_path = std::path::Path::new(input_file);
+    if !input_file_path.exists() {
+        eprintln!("Error: input file '{}' does not exist.", input_file);
+        std::process::exit(1);
+    }
+
+    if !input_file_path.is_file() {
+        eprintln!("Error: '{}' is not a file.", input_file);
+        std::process::exit(1);
+    }
+
+    let min_quality_str = matches.get_one::<String>("min_quality").unwrap();
+    let min_quality: f64 = match min_quality_str.parse() {
+        Ok(value) => value,
+        Err(_) => {
+            eprintln!("Error: invalid value for 'min_quality'. Expected a floating-point number.");
+            std::process::exit(1);
+        }
+    };
+
+    let min_length_str = matches.get_one::<String>("min_length").unwrap();
+    let min_length: usize = match min_length_str.parse() {
+        Ok(value) => value,
+        Err(_) => {
+            eprintln!("Error: invalid value for 'min_length'. Expected a positive integer.");
+            std::process::exit(1);
+        }
+    };
+
+    let num_threads_str = matches.get_one::<String>("num_threads").unwrap();
+    let num_threads: usize = match num_threads_str.parse() {
+        Ok(value) => value,
+        Err(_) => {
+            eprintln!("Error: invalid value for 'num_threads'. Expected a positive integer.");
+            std::process::exit(1);
+        }
+    };
+
+    let batch_size_str = matches.get_one::<String>("batch_size").unwrap();
+    let batch_size: usize = match batch_size_str.parse() {
+        Ok(value) => value,
+        Err(_) => {
+            eprintln!("Error: invalid value for 'batch_size'. Expected a positive integer.");
+            std::process::exit(1);
+        }
+    };
 
     let result = filter_fastq_by_quality_and_length(input_file, output_file, num_threads, batch_size, min_quality, min_length);
 
