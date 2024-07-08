@@ -135,6 +135,8 @@ fn get_quality_value(header: &str) -> Result<f64, String> {
 fn main() {
     // let default_batch_size: usize = 10000;
     let matches = clap::Command::new("fastq-filter")
+        .version("v1.1.1")
+        .about("Filters FASTQ files based on quality and length")
         .arg(clap::Arg::new("input_file")
              .short('i')
              .long("input")
