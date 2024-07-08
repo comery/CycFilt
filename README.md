@@ -43,12 +43,24 @@ cyc_filt -i test.fastq.gz -o test.hq.fq.gz -q 7 -l 1000 -t 4
 
 ## Change logs
 
+- V1.2.0, # 20240708
+
+  - Multi CPUs instead of threads
+
 - V1.1.1
+
   - add chunk size for batch reading and processing
+
 - v1.1.0
+
   - Multi-threads with syn read and write
+
 - V1.0.0
+
   - multi-threads with async read and write
+
 - v0.1.0
+
   - single thread for running
-- 
+
+  
