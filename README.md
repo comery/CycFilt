@@ -28,7 +28,7 @@ Options:
   -o, --output <output_file>       Output FASTQ file
   -q, --min-quality <min_quality>  Minimum quality score
   -l, --min-length <min_length>    Minimum sequence length
-  -t, --threads <num_threads>      Number of threads to use
+  -c, --cpus <num_cpus>            Number of cpus to use
   -b, --batch-size <batch_size>    Batch size for processing [default: 10000]
   -h, --help                       Print help
 
