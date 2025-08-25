@@ -12,7 +12,7 @@ use num_cpus;
 fn filter_fastq_by_quality_and_length(
     input_file: &str,
     output_file: &str,
-    num_cpus: usize,
+    _num_cpus: usize,
     batch_size: usize,
     min_quality: f64,
     min_length: usize,
@@ -20,20 +20,18 @@ fn filter_fastq_by_quality_and_length(
     let input_path = std::path::Path::new(input_file);
     let output_path = std::path::Path::new(output_file);
 
-    let input_file = File::open(input_path).expect("Failed to open input file");
-
     let mut buf = [0; 2];
-    File::open(input_path)
-        .expect("Failed to open input file again")
+    let mut input_file_for_check = File::open(input_path).expect("Failed to open input file");
+    input_file_for_check
         .read_exact(&mut buf)
         .expect("Failed to read first two bytes");
     let reader: Box<dyn BufRead> = if &buf == b"\x1f\x8b" {
-        Box::new(BufReader::new(flate2::read::GzDecoder::new(input_file)))
+        Box::new(BufReader::new(flate2::read::GzDecoder::new(File::open(input_path)?)))
     } else {
-        Box::new(BufReader::new(File::open(input_path).expect("Failed to open input file again")))
+        Box::new(BufReader::new(File::open(input_path)?))
     };
 
-    let output_file = File::create(output_path).unwrap();
+    let output_file = File::create(output_path)?;
     let writer = Arc::new(Mutex::new(GzEncoder::new(BufWriter::new(output_file), Compression::default())));
 
     let total_reads = Arc::new(Mutex::new(0));
@@ -50,33 +48,53 @@ fn filter_fastq_by_quality_and_length(
 
         let batch_end = batch_start + lines.len() / 4;
 
-        lines.par_chunks(4)
-            .enumerate()
-            .for_each_with(num_cpus, |_i, chunk| {
-                let (_, chunk_ref) = chunk;
-                let header = chunk_ref[0].as_ref();
-                let sequence = <std::string::String as AsRef<str>>::as_ref(&chunk_ref[1]);
-                let quality_value = match get_quality_value(header) {   
-                    Ok(val) => val,
-                    Err(e) => {
-                        eprintln!("Failed to parse quality value from {}: {}", header, e);
-                        return;
-                    }
-                };
+        let writer_clone = Arc::clone(&writer);
+        let (local_total, local_filtered, output_lines) = lines.par_chunks(4)
+            .fold(
+                || (0, 0, Vec::new()),
+                |(total, mut filtered, mut output_lines), chunk| {
+                    let header = &chunk[0];
+                    let sequence = &chunk[1];
+                    let quality_value = match get_quality_value(header) {   
+                        Ok(val) => val,
+                        Err(e) => {
+                            eprintln!("Failed to parse quality value from {}: {}", header, e);
+                            return (total + chunk.len(), filtered, output_lines);
+                        }
+                    };
 
-                if quality_value >= min_quality && sequence.len() >= min_length {
-                    let mut writer_guard = writer.lock().unwrap();
-                    for line in chunk_ref {
-                        writeln!(&mut *writer_guard, "{}", line).unwrap();
+                    if quality_value >= min_quality && sequence.len() >= min_length {
+                        output_lines.extend(chunk.iter().map(|s| s.clone()));
+                    } else {
+                        filtered += 1;
                     }
-                } else {
-                    let mut filtered_reads_guard = filtered_reads.lock().unwrap();
-                    *filtered_reads_guard += 1;
+                    
+                    (total + chunk.len(), filtered, output_lines)
                 }
+            )
+            .reduce(
+                || (0, 0, Vec::new()),
+                |(total1, filtered1, mut lines1), (total2, filtered2, lines2)| {
+                    lines1.extend(lines2);
+                    (total1 + total2, filtered1 + filtered2, lines1)
+                }
+            );
 
-                let mut total_reads_guard = total_reads.lock().unwrap();
-                *total_reads_guard += chunk_ref.len();
-            });
+        if !output_lines.is_empty() {
+            let mut writer_guard = writer_clone.lock().unwrap();
+            for line in &output_lines {
+                writeln!(&mut *writer_guard, "{}", line)?;
+            }
+        }
+
+        {
+            let mut total_reads_guard = total_reads.lock().unwrap();
+            *total_reads_guard += local_total;
+        }
+        {
+            let mut filtered_reads_guard = filtered_reads.lock().unwrap();
+            *filtered_reads_guard += local_filtered;
+        }
 
         batch_start = batch_end;
     }
@@ -93,7 +111,7 @@ fn filter_fastq_by_quality_and_length(
 }
 
 
-fn get_quality_value(header: &str) -> Result<f64, String> {
+fn get_quality_value(header: &String) -> Result<f64, String> {
     let parts: Vec<&str> = header.split('_').collect();
     if let Some(last_part) = parts.last() {
         last_part.parse::<f64>().map_err(|e| e.to_string())
