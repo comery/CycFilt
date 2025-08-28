@@ -59,6 +59,9 @@ cyc_filt -i test.fastq.gz -o test.hq.fq.gz -a GGGTGACAGAGCAAGACCCTGTCTCAGAA  -x 
 
 ## Change logs
 
+- V2.0.1 # 20250829
+   - improve the adapter sequence identification to handle reverse complement cases
+
 - V2.0.0 # 20250826
    - Improve performance
    - Add the function of adapter detecting and trimming
