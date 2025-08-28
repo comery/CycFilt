@@ -158,6 +158,25 @@ fn get_quality_value(header: &String) -> Result<f64, String> {
     }
 }
 
+fn reverse_complement(sequence: &str) -> String {
+    sequence.chars()
+        .rev()
+        .map(|c| match c {
+            'A' => 'T',
+            'T' => 'A',
+            'G' => 'C',
+            'C' => 'G',
+            'a' => 't',
+            't' => 'a',
+            'g' => 'c',
+            'c' => 'g',
+            'N' => 'N',
+            'n' => 'n',
+            _ => c, // Keep unknown characters as-is
+        })
+        .collect()
+}
+
 fn smith_waterman_align(
     sequence: &str,
     adapter: &str,
@@ -243,17 +262,29 @@ fn detect_adapter_position(
     min_match: usize,
     max_mismatches: usize,
     max_indels: usize,
-) -> Option<usize> {
+) -> Option<(usize, bool)> {
     if adapter.len() < min_match {
         return None;
     }
     
+    // Try forward adapter
     if let Some((start_i, _end_i, start_j, end_j)) = smith_waterman_align(
         sequence, adapter, 2, -1, -2, max_mismatches, max_indels
     ) {
         let aligned_length = end_j - start_j;
         if aligned_length >= min_match {
-            return Some(start_i);
+            return Some((start_i, false)); // false indicates forward orientation
+        }
+    }
+    
+    // Try reverse complement adapter
+    let rev_comp_adapter = reverse_complement(adapter);
+    if let Some((start_i, _end_i, start_j, end_j)) = smith_waterman_align(
+        sequence, &rev_comp_adapter, 2, -1, -2, max_mismatches, max_indels
+    ) {
+        let aligned_length = end_j - start_j;
+        if aligned_length >= min_match {
+            return Some((start_i, true)); // true indicates reverse complement orientation
         }
     }
     
@@ -272,9 +303,10 @@ fn process_adapter_sequence(
 ) -> Vec<(String, String, String)> {
     let mut results = Vec::new();
     
-    if let Some(pos) = detect_adapter_position(sequence, adapter, min_match, max_mismatches, max_indels) {
+    if let Some((pos, is_reverse_complement)) = detect_adapter_position(sequence, adapter, min_match, max_mismatches, max_indels) {
         if debug_mode {
-            eprintln!("DEBUG: Adapter found in {} at position {}", header, pos);
+            let orientation = if is_reverse_complement { "reverse complement" } else { "forward" };
+            eprintln!("DEBUG: Adapter found in {} at position {} ({})", header, pos, orientation);
         }
         
         // Always split at adapter position
